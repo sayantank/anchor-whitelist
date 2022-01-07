@@ -26,7 +26,6 @@ pub mod sigma {
         let whitelist = &ctx.accounts.whitelist;
 
         let node = anchor_lang::solana_program::keccak::hash(user.key().as_ref());
-        msg!("node: {:?}", node);
         require!(merkle_proof::verify(proof, whitelist.root, node.0), InvalidProof);
 
         counter.count += 1;
