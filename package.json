@@ -1,7 +1,6 @@
 {
     "dependencies": {
         "@project-serum/anchor": "^0.20.0",
-        "js-sha3": "^0.8.0",
         "keccak256": "^1.0.6",
         "merkletreejs": "^0.2.27"
     },
