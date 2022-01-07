@@ -51,6 +51,12 @@ describe("sigma", () => {
   });
 
   it("Valid Increment", async () => {
-    // TODO
+    const leaf = keccak256(provider.wallet.publicKey.toBuffer());
+    console.log("Leaf: ", leaf);
+    const proof = tree.getProof(leaf);
+
+    console.log("Proof: ", proof);
+
+    //const tx = await program.rpc.increment(proof, )
   });
 });
