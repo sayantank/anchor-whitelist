@@ -2,7 +2,8 @@ import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import { Sigma } from "../target/types/sigma";
 import { MerkleTree } from "merkletreejs";
-import { keccak256 } from "js-sha3";
+import keccak256 from "keccak256";
+import assert from "assert";
 
 describe("sigma", () => {
   const provider = anchor.Provider.env();
@@ -18,7 +19,7 @@ describe("sigma", () => {
   let user2 = anchor.web3.Keypair.generate();
   // user3 is provider.wallet
 
-  let anon = anchor.web3.Keypair.generate();
+  let attacker = anchor.web3.Keypair.generate();
 
   const tree = new MerkleTree(
     [
@@ -27,10 +28,9 @@ describe("sigma", () => {
       provider.wallet.publicKey.toBuffer(),
     ],
     keccak256,
-    { sort: true }
+    { sortPairs: true, hashLeaves: true }
   );
   const root = tree.getRoot();
-  console.log("Root:", root.toString("hex"));
 
   it("Initialize", async () => {
     [whitelist, whitelistBump] = await anchor.web3.PublicKey.findProgramAddress(
@@ -38,25 +38,59 @@ describe("sigma", () => {
       program.programId
     );
 
-    const tx = await program.rpc.initialize(whitelistBump, [...root], {
+    try {
+      await program.rpc.initialize(whitelistBump, [...root], {
+        accounts: {
+          whitelist: whitelist,
+          counter: counter.publicKey,
+          payer: provider.wallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        },
+        signers: [counter],
+      });
+    } catch (e) {
+      assert.fail("Initialization failed.");
+    }
+  });
+
+  it("valid increment", async () => {
+    const leaf = keccak256(user1.publicKey.toBuffer());
+    const proof = tree.getProof(leaf);
+
+    const validProof: Buffer[] = proof.map((p) => p.data);
+
+    await program.rpc.increment(validProof, {
       accounts: {
         whitelist: whitelist,
         counter: counter.publicKey,
-        payer: provider.wallet.publicKey,
+        payer: user1.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
       },
-      signers: [counter],
+      signers: [user1],
     });
-    console.log("Your transaction signature", tx);
+
+    const counterInfo = await program.account.counter.fetch(counter.publicKey);
+    assert.equal(counterInfo.count, 1);
   });
 
-  it("Valid Increment", async () => {
-    const leaf = keccak256(provider.wallet.publicKey.toBuffer());
-    console.log("Leaf: ", leaf);
+  it("Invalid Increment", async () => {
+    const leaf = keccak256(attacker.publicKey.toBuffer());
     const proof = tree.getProof(leaf);
 
-    console.log("Proof: ", proof);
+    const validProof: Buffer[] = proof.map((p) => p.data);
 
-    //const tx = await program.rpc.increment(proof, )
+    try {
+      await program.rpc.increment(validProof, {
+        accounts: {
+          whitelist: whitelist,
+          counter: counter.publicKey,
+          payer: provider.wallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        },
+      });
+      assert.fail("attacker shouldn't be able to increment!");
+    } catch (e) {
+      assert.equal(e.code, 6000);
+    }
   });
 });
