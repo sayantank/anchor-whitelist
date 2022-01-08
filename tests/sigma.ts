@@ -73,7 +73,7 @@ describe("sigma", () => {
     assert.equal(counterInfo.count, 1);
   });
 
-  it("Invalid Increment", async () => {
+  it("invalid increment", async () => {
     const leaf = keccak256(attacker.publicKey.toBuffer());
     const proof = tree.getProof(leaf);
 
