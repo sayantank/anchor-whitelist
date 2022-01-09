@@ -1,3 +1,3 @@
-# sigma
+# anchor-whitelist ⚓
 
-whitelisting implementation on Anchor
+simple whitelisting implementation on Anchor 
