@@ -25,9 +25,17 @@ pub mod sigma {
         let counter = &mut ctx.accounts.counter;
         let whitelist = &ctx.accounts.whitelist;
 
+        // The hash of the data we're verifying for. It could be something like this,
+        // let node = anchor_lang::solana_program::keccak::hashv(&[
+        //     &index.to_le_bytes(),
+        //     &claimant_account.key().to_bytes(),
+        //     &amount.to_le_bytes(),
+        // ]);
+
         let node = anchor_lang::solana_program::keccak::hash(user.key().as_ref());
         require!(merkle_proof::verify(proof, whitelist.root, node.0), InvalidProof);
 
+        // Verification Successful
         counter.count += 1;
 
         Ok(())
@@ -37,6 +45,7 @@ pub mod sigma {
 #[derive(Accounts)]
 #[instruction(whitelist_bump: u8, _root: [u8; 32])]
 pub struct Initialize<'info> {
+    /// Whitelist account that stores the root hash
     #[account(
         init,
         seeds = [
@@ -48,8 +57,14 @@ pub struct Initialize<'info> {
     )]
     pub whitelist: Account<'info, Whitelist>,
 
+    /// Counter account
     #[account(
         init,
+        seeds = [
+            b"counter".as_ref(),
+            payer.key().as_ref()
+        ],
+        bump = whitelist_bump,
         payer = payer
     )]
     pub counter: Account<'info, Counter>,
@@ -63,9 +78,11 @@ pub struct Initialize<'info> {
 
 #[derive(Accounts)]
 pub struct Increment<'info> {
+    /// Whitelist account that stores the root hash
     #[account(mut)]
     pub whitelist: Account<'info, Whitelist>,
 
+    /// Counter account
     #[account(mut)]
     pub counter: Account<'info, Counter>,
 
