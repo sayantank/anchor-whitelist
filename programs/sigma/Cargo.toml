@@ -16,5 +16,5 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.20.0"
+anchor-lang = "0.24.2"
 rs_merkle = "1.1.0"
