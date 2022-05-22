@@ -1,26 +1,24 @@
 use anchor_lang::prelude::*;
-
 pub mod merkle_proof;
+use std::mem::size_of;
 
-declare_id!("HeVBDgyLTeCosZ7jAwoHsLLFbRHnDnRos4c4M84gf9AD");
+declare_id!("651wt9EAWKaaxxLcmD9APKa8FuYZXhtgbds8DM4UGYRM");
 
 #[program]
 pub mod sigma {
     use super::*;
-    pub fn initialize(ctx: Context<Initialize>, whitelist_bump: u8, root: [u8; 32]) -> ProgramResult {
+    pub fn initialize(ctx: Context<Initialize>,  root: [u8; 32]) -> Result<()> {
         let whitelist = &mut ctx.accounts.whitelist;
 
         whitelist.base = ctx.accounts.payer.key();
         whitelist.root = root;
-        whitelist.bump = whitelist_bump;
-
         let counter = &mut ctx.accounts.counter;
         counter.count = 0;
 
         Ok(())
     }
 
-    pub fn increment(ctx: Context<Increment>, proof: Vec<[u8; 32]>) -> ProgramResult {
+    pub fn increment(ctx: Context<Increment>, proof: Vec<[u8; 32]>) -> Result<()> {
         let user = &ctx.accounts.payer;
         let counter = &mut ctx.accounts.counter;
         let whitelist = &ctx.accounts.whitelist;
@@ -43,16 +41,15 @@ pub mod sigma {
 }
 
 #[derive(Accounts)]
-#[instruction(whitelist_bump: u8, _root: [u8; 32])]
 pub struct Initialize<'info> {
     /// Whitelist account that stores the root hash
     #[account(
         init,
         seeds = [
-            b"whitelist".as_ref(),
-            payer.key().as_ref()
+            b"whitelist".as_ref()
         ],
-        bump = whitelist_bump,
+        bump,
+        space = 8 + size_of::< Whitelist > (),
         payer = payer
     )]
     pub whitelist: Account<'info, Whitelist>,
@@ -61,11 +58,11 @@ pub struct Initialize<'info> {
     #[account(
         init,
         seeds = [
-            b"counter".as_ref(),
-            payer.key().as_ref()
+            b"counter".as_ref()
         ],
-        bump = whitelist_bump,
-        payer = payer
+        bump,
+        payer = payer,
+        space = 8 + size_of::< Counter > (),
     )]
     pub counter: Account<'info, Counter>,
 
@@ -79,16 +76,20 @@ pub struct Initialize<'info> {
 #[derive(Accounts)]
 pub struct Increment<'info> {
     /// Whitelist account that stores the root hash
-    #[account(mut)]
+    #[account(mut,seeds = [
+    b"whitelist".as_ref()
+    ],bump)]
     pub whitelist: Account<'info, Whitelist>,
 
     /// Counter account
-    #[account(mut)]
+    #[account(mut,seeds = [
+    b"counter".as_ref()
+    ],bump)]
     pub counter: Account<'info, Counter>,
 
     #[account(mut)]
     pub payer: Signer<'info>,
-    
+
     /// The [System] program.
     pub system_program: Program<'info, System>,
 }
@@ -97,7 +98,6 @@ pub struct Increment<'info> {
 #[derive(Default)]
 pub struct Whitelist {
     pub base: Pubkey,
-    pub bump: u8,
     pub root: [u8; 32],
 }
 
@@ -107,7 +107,7 @@ pub struct Counter {
     pub count: u64,
 }
 
-#[error]
+#[error_code]
 pub enum ErrorCode {
     #[msg("Invalid Merkle proof.")]
     InvalidProof,
