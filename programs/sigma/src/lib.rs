@@ -34,7 +34,7 @@ pub mod sigma {
         require!(merkle_proof::verify(proof, whitelist.root, node.0), InvalidProof);
 
         // Verification Successful
-        counter.count += 1;
+        counter.count = counter.count.checked_add(1).unwrap();
 
         Ok(())
     }
